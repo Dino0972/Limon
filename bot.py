@@ -1,18 +1,19 @@
+from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-import logging
+from telegram.ext import Application, CommandHandler
 
-# Логирование
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# API ключи
+# Конфигурация
 BOT_TOKEN = "7598387508:AAHbYeJv-r1eQe2YcB9wEiXypGVgw3qd-Js"
+WEBHOOK_URL = "https://ВАШ-СЕРВЕР/render.com/webhook"  # Замените на ваш HTTPS URL
+
+# Создаём приложение Flask
+app = Flask(__name__)
+
+# Создаём экземпляр бота
+application = Application.builder().token(BOT_TOKEN).build()
 
 # Команды
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context):
     await update.message.reply_text(
         "Привет! Я футбольный бот. Вот что я умею:\n"
         "/schedule - ближайшие матчи\n"
@@ -23,37 +24,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/news - последние новости футбола"
     )
 
-async def schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def schedule(update: Update, context):
     await update.message.reply_text("Здесь будет расписание ближайших матчей.")
 
-async def search_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def search_player(update: Update, context):
     await update.message.reply_text("Здесь будет информация об игроке.")
 
-async def transfers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def transfers(update: Update, context):
     await update.message.reply_text("Здесь будет список последних трансферов.")
 
-async def league_table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def league_table(update: Update, context):
     await update.message.reply_text("Здесь будет турнирная таблица.")
 
-async def team_matches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def team_matches(update: Update, context):
     await update.message.reply_text("Здесь будет информация о матчах команды.")
 
-async def news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def news(update: Update, context):
     await update.message.reply_text("Здесь будут последние новости футбола.")
 
-# Основная функция
-def main() -> None:
-    application = Application.builder().token(BOT_TOKEN).build()
+# Регистрируем команды
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("schedule", schedule))
+application.add_handler(CommandHandler("search_player", search_player))
+application.add_handler(CommandHandler("transfers", transfers))
+application.add_handler(CommandHandler("league_table", league_table))
+application.add_handler(CommandHandler("team_matches", team_matches))
+application.add_handler(CommandHandler("news", news))
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("schedule", schedule))
-    application.add_handler(CommandHandler("search_player", search_player))
-    application.add_handler(CommandHandler("transfers", transfers))
-    application.add_handler(CommandHandler("league_table", league_table))
-    application.add_handler(CommandHandler("team_matches", team_matches))
-    application.add_handler(CommandHandler("news", news))
+# Маршрут для Telegram вебхука
+@app.route(f"/webhook", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.process_update(update)
+    return "OK", 200
 
-    application.run_polling()
-
+# Основной запуск
 if __name__ == "__main__":
-    main()
+    # Устанавливаем вебхук
+    application.bot.set_webhook(WEBHOOK_URL)
+    # Запускаем Flask
+    app.run(host="0.0.0.0", port=5000)
